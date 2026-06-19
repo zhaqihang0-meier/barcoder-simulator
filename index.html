@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barcoder — 条纹贝斯</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="audio-unlock-overlay" class="audio-unlock-overlay" aria-hidden="false">
+    <div class="audio-unlock-card">
+      <p class="audio-unlock-title" data-i18n="unlock.title">启动音频引擎</p>
+      <p class="audio-unlock-desc" data-i18n="unlock.desc">浏览器要求一次点击后才能播放声音</p>
+      <button type="button" id="audio-unlock-btn" class="audio-unlock-btn" data-i18n="unlock.btn">点击开始演奏</button>
+      <p id="audio-unlock-status" class="audio-unlock-status"></p>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <h1>Barcoder</h1>
+    <p class="subtitle" data-i18n="meta.subtitle">条码贝斯 · 激光扫码枪模拟器</p>
+    <p class="site-author">
+      <span data-i18n="meta.authorBy">by</span>
+      <a href="https://search.bilibili.com/all?keyword=%E6%A5%B5%E6%9D%B1%E8%B8%8A%E7%BE%8AMeier" target="_blank" rel="noopener noreferrer">極東踊羊Meier</a>
+      <span class="site-author-sep" aria-hidden="true"> · </span>
+      <a href="https://www.electronicosfantasticos.com/en/" target="_blank" rel="noopener noreferrer" data-i18n="meta.efLink" title="ELECTRONICOS FANTASTICOS!">ELECTRONICOS FANTASTICOS!</a>
+    </p>
+    <nav class="lang-bar" id="barcoder-lang-bar" aria-label="Language">
+      <button type="button" class="lang-btn" data-locale="zh-CN">简体中文</button>
+      <button type="button" class="lang-btn" data-locale="zh-TW">繁體中文</button>
+      <button type="button" class="lang-btn" data-locale="en">English</button>
+      <button type="button" class="lang-btn" data-locale="es">Español</button>
+      <button type="button" class="lang-btn" data-locale="ja">日本語</button>
+    </nav>
+  </header>
+
+  <section id="panel-bass" class="panel active" role="main">
+    <nav class="bass-play-mode" aria-label="Play mode">
+      <label class="play-mode-option">
+        <input type="radio" name="bass-play-mode" value="barcode" checked>
+        <span class="play-mode-title" data-i18n="play.barcode">条码演奏</span>
+        <span class="play-mode-desc" data-i18n="play.barcodeDesc">八条竖纹、方框滑音、放射纹与自定义图片</span>
+      </label>
+      <label class="play-mode-option play-mode-option--score">
+        <input type="radio" name="bass-play-mode" value="score">
+        <span class="play-mode-title" data-i18n="play.score">乐谱编写</span>
+        <span class="play-mode-desc" data-i18n="play.scoreDesc">逐行作曲 · 滑音与合音 · MIDI 录入 · 导出 PNG</span>
+      </label>
+    </nav>
+
+    <div class="controls-grid">
+      <fieldset class="scan-panel">
+        <legend data-i18n="scan.legend">振镜 / 扫描</legend>
+        <div class="scan-sliders">
+          <label>
+            <span data-i18n="scan.mirrorFreq">帧率（振镜）</span> <span id="bass-mirror-val">22</span> <span id="bass-mirror-unit">Hz</span>
+            <input type="range" id="bass-mirror-freq" min="0" max="400" step="1" value="22">
+          </label>
+          <p class="control-note" data-i18n="scan.mirrorNote">frameRate = 振镜频率；设为 0 时改为按住鼠标滑动手动扫描；滑块右侧可输入精确数值</p>
+          <label>
+            <span data-i18n="scan.lineWidth">扫描线宽</span> <span id="bass-scan-width-val">200</span> px
+            <input type="range" id="bass-scan-width" min="0" max="400" step="1" value="200">
+          </label>
+          <p class="control-note" data-i18n="scan.lineNote">0 = 单点激光（沿移动轨迹采样，需在条纹上滑动）；线宽 × 帧率 ≈ 音高</p>
+          <label>
+            <span data-i18n="scan.laserWidth">激光线宽（移动平均）</span> <span id="bass-laser-width-val">2</span>
+            <input type="range" id="bass-laser-width" min="0" max="20" step="1" value="2">
+          </label>
+          <label>
+            <span data-i18n="scan.lerp">平滑 Lerp</span> <span id="bass-lerp-val">0.5</span>
+            <input type="range" id="bass-lerp" min="0.1" max="1" step="0.1" value="0.5">
+          </label>
+        </div>
+        <div class="scan-dir-block">
+          <p class="control-note" data-i18n="scan.dirTitle">振镜方向：</p>
+          <div class="scan-radios">
+            <label class="barcode-type">
+              <input type="radio" name="bass-scan-lock" value="follow" checked> <span data-i18n="scan.follow">跟随鼠标（⊥ 移动方向）</span>
+            </label>
+            <label class="barcode-type">
+              <input type="radio" name="bass-scan-lock" value="horizontal"> <span data-i18n="scan.lockH">锁定横向</span>
+            </label>
+            <label class="barcode-type">
+              <input type="radio" name="bass-scan-lock" value="vertical"> <span data-i18n="scan.lockV">锁定纵向</span>
+            </label>
+            <p class="control-note" id="bass-idle-scan-note" data-i18n="scan.idleNote">跟随模式下，鼠标几乎不动时的默认方向：</p>
+            <div id="bass-idle-scan-wrap" class="scan-idle-radios">
+              <label class="barcode-type">
+                <input type="radio" name="bass-default-scan" value="horizontal" checked> <span data-i18n="scan.idleH">横向</span>
+              </label>
+              <label class="barcode-type">
+                <input type="radio" name="bass-default-scan" value="vertical"> <span data-i18n="scan.idleV">纵向</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="scan-checks">
+          <label class="toggle">
+            <input type="checkbox" id="bass-mirror-swing" checked> <span data-i18n="scan.mirrorSwing">振镜往返（音频正反拼接）</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="bass-barcode-window" checked> <span data-i18n="scan.window">Barcoder 窗函数</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="bass-auto-volume" checked> <span data-i18n="scan.autoVol">随线宽自动音量</span>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="bass-barcode-panel" class="barcode-panel">
+        <legend data-i18n="bar.legend">条码</legend>
+        <label id="bass-density-wrap">
+          <span data-i18n="bar.density">全局疏密</span> <span id="bass-density-val">1.0</span>×
+          <input type="range" id="bass-global-density" min="0.1" max="8" step="0.05" value="1">
+        </label>
+        <label class="barcode-type">
+          <input type="radio" name="bass-barcode-type" value="vertical" checked> <span data-i18n="bar.vertical">八条竖纹</span>
+        </label>
+        <label class="barcode-type">
+          <input type="radio" name="bass-barcode-type" value="box"> <span data-i18n="bar.box">方框滑音条码</span>
+        </label>
+        <label class="barcode-type">
+          <input type="radio" name="bass-barcode-type" value="box-radial"> <span data-i18n="bar.radial">方框放射纹</span>
+        </label>
+        <label class="barcode-type">
+          <input type="radio" name="bass-barcode-type" value="image"> <span data-i18n="bar.image">上传图片</span>
+        </label>
+        <label class="barcode-type">
+          <input type="radio" name="bass-barcode-type" value="audio"> <span data-i18n="bar.audio">语音转条码</span>
+        </label>
+        <label class="file-label" id="bass-image-upload-wrap">
+          <input type="file" id="bass-image-file" accept="image/*">
+          <span data-i18n="bar.pickImage">选择图片（PNG/JPG 等）</span>
+        </label>
+        <p class="control-note" id="bass-image-name" data-i18n="bar.noImage">未选择图片时使用内置条纹</p>
+        <div id="bass-audio-barcode-wrap" class="audio-barcode-panel hidden">
+          <p class="audio-barcode-test-banner" data-i18n="bar.audioTestNote">! 测试：可以生成对应条码，但无法在网页进行扫描</p>
+          <p class="control-note" data-i18n="bar.audioIntro">波形横向铺展为竖条明暗；灰=静音，亮/暗=正负幅值。最长 10 秒。</p>
+          <label class="file-label">
+            <input type="file" id="bass-audio-file" accept="audio/*">
+            <span data-i18n="bar.pickAudio">选择音频（WAV/MP3 等，≤10 秒）</span>
+          </label>
+          <label>
+            <span data-i18n="bar.audioCps">采样密度</span> <span id="bass-audio-cps-val">140</span> <span data-i18n="bar.audioCpsUnit">列/秒</span>
+            <input type="range" id="bass-audio-cps" min="80" max="360" step="10" value="140">
+          </label>
+          <label>
+            <span data-i18n="bar.audioColW">列宽</span> <span id="bass-audio-colw-val">6</span> <span data-i18n="bar.audioColWUnit">px/列</span>
+            <input type="range" id="bass-audio-colw" min="3" max="16" step="1" value="6">
+          </label>
+          <p class="control-note" data-i18n="bar.audioDensityNote">列宽越大打印后越容易匀速扫过；总宽 ≈ 时长×采样密度×列宽。导出 PNG 会再加宽列以便打印。</p>
+          <div class="score-actions score-actions--bar">
+            <button type="button" class="btn btn-secondary" id="bass-audio-convert" data-i18n="bar.audioConvert">生成条码</button>
+            <button type="button" class="btn btn-secondary" id="bass-audio-export" data-i18n="bar.audioExport">导出 PNG</button>
+          </div>
+          <p class="control-note" id="bass-audio-status" data-i18n="bar.audioEmpty">未选择音频</p>
+        </div>
+      </fieldset>
+    </div>
+
+    <div id="bass-score-panel" class="score-workspace hidden" role="region" aria-labelledby="score-workspace-title">
+      <header class="score-workspace-head">
+        <h2 id="score-workspace-title" data-i18n="score.legend">乐谱编写</h2>
+        <p class="score-workspace-lead" data-i18n="score.enterNote">帧率与线宽已锁定（计音用 f≈帧率×线宽/条纹周期）；振镜方向可随时切换</p>
+        <p class="score-locked" id="score-locked-summary">—</p>
+      </header>
+      <section class="score-compose">
+        <div class="score-compose-bar">
+          <span class="score-section-title" data-i18n="score.composeLegend">添加音符</span>
+          <p class="control-note score-page-info" id="score-page-info" data-i18n="score.pageEmpty">共 0 行 · 滚轮上下移动视口</p>
+        </div>
+        <div class="score-field-grid">
+          <label class="score-field">
+            <span data-i18n="score.targetPitch">目标音高</span>
+            <select id="score-pitch" class="score-pitch-select"></select>
+          </label>
+          <label class="score-field">
+            <span data-i18n="score.rowKind">条码样式</span>
+            <select id="score-row-kind">
+              <option value="stripes" data-i18n="score.stripes">竖纹</option>
+              <option value="gliss" data-i18n="score.gliss">滑音条纹</option>
+            </select>
+          </label>
+        </div>
+        <div id="score-gliss-add-wrap" class="score-gliss-wrap score-field-grid hidden">
+          <label class="score-field">
+            <span data-i18n="score.glissDir">滑音方向</span>
+            <select id="score-gliss-dir">
+              <option value="lower" selected data-i18n="score.glissLower">向下更低（扩散）</option>
+              <option value="higher" data-i18n="score.glissHigher">向下更高（收拢）</option>
+            </select>
+          </label>
+          <label class="score-field">
+            <span data-i18n="score.glissLen">滑音长度</span> <span id="score-gliss-height-val">100</span>%
+            <input type="range" id="score-gliss-height" min="100" max="400" step="1" value="100">
+          </label>
+        </div>
+        <div class="score-actions score-actions--bar">
+          <button type="button" class="btn" id="score-add-note" data-i18n="score.addRow">添加一行音符</button>
+          <button type="button" class="btn btn-secondary" id="score-undo-note" data-i18n="score.undoRow">删除最后一行</button>
+          <button type="button" class="btn btn-secondary" id="score-clear" data-i18n="score.clear">清空乐谱</button>
+          <button type="button" class="btn" id="score-load-birthday" data-i18n="score.birthday">加载示例：生日快乐</button>
+        </div>
+        <fieldset class="score-bulk-field">
+          <legend data-i18n="score.bulkLegend">批量输入音名</legend>
+          <p class="control-note" data-i18n="score.bulkHint">空格或逗号分隔；休止符用 - 或 rest；合音用 C4+E4 或 (C4 E4 G4)；缺省八度为 4</p>
+          <div id="score-bulk-sync" class="score-bulk-sync" aria-live="polite">—</div>
+          <textarea
+            id="score-bulk-input"
+            class="score-bulk-input"
+            rows="3"
+            spellcheck="false"
+            data-i18n-placeholder="score.bulkPlaceholder"
+            placeholder="G4 G4 A4 G4 C5 B4 G4 G4 A4 G4 D5 C5"
+          ></textarea>
+          <div class="score-bulk-actions">
+            <label class="score-export-choice">
+              <input type="radio" name="score-bulk-mode" value="replace" checked>
+              <span data-i18n="score.bulkReplace">替换乐谱</span>
+            </label>
+            <label class="score-export-choice">
+              <input type="radio" name="score-bulk-mode" value="append">
+              <span data-i18n="score.bulkAppend">追加到末尾</span>
+            </label>
+            <button type="button" class="btn" id="score-bulk-generate" data-i18n="score.bulkGenerate">一键生成乐谱</button>
+          </div>
+          <p class="control-note control-note--tight" id="score-bulk-status"></p>
+        </fieldset>
+        <div class="score-export-options">
+          <span class="score-export-label" data-i18n="score.exportLabels">导出标注</span>
+          <label class="score-export-choice">
+            <input type="radio" name="score-export-labels" value="with" checked>
+            <span data-i18n="score.exportWithLabels">带音名</span>
+          </label>
+          <label class="score-export-choice">
+            <input type="radio" name="score-export-labels" value="without">
+            <span data-i18n="score.exportNoLabels">仅条码</span>
+          </label>
+        </div>
+        <div class="score-export-options score-export-options--format">
+          <span class="score-export-label" data-i18n="score.exportFormat">导出尺寸</span>
+          <label class="score-export-choice">
+            <input type="radio" name="score-export-format" value="strip" checked>
+            <span data-i18n="score.exportStrip">长条单图</span>
+          </label>
+          <label class="score-export-choice">
+            <input type="radio" name="score-export-format" value="a4">
+            <span data-i18n="score.exportA4">A4 分页打印</span>
+          </label>
+          <button type="button" class="btn" id="score-export" data-i18n="score.export">导出 PNG</button>
+        </div>
+      </section>
+      <div class="score-tools-grid">
+        <fieldset class="score-edit-field">
+          <legend data-i18n="score.editLegend">编辑选中行</legend>
+          <p class="control-note" id="score-edit-target" data-i18n-html="score.editAim">鼠标指向某行后按 <strong>X</strong> 锁定编辑</p>
+          <p class="control-note" id="score-edit-voice-info"></p>
+          <div class="score-edit-row">
+            <label class="score-field">
+              <span data-i18n="score.editPitch">音高</span>
+              <select id="score-edit-pitch" class="score-pitch-select"></select>
+            </label>
+            <button type="button" class="btn" id="score-edit-apply" data-i18n="score.applyVoice">应用到选中分音</button>
+          </div>
+          <div class="score-edit-row" id="score-edit-kind-row">
+            <label class="score-field">
+              <span data-i18n="score.rowKind">条码样式</span>
+              <select id="score-edit-kind">
+                <option value="stripes" data-i18n="score.stripes">竖纹</option>
+                <option value="gliss" data-i18n="score.gliss">滑音条纹</option>
+              </select>
+            </label>
+          </div>
+          <div id="score-edit-gliss-wrap" class="score-gliss-wrap score-field-grid hidden">
+            <label class="score-field">
+              <span data-i18n="score.glissDir">滑音方向</span>
+              <select id="score-edit-gliss-dir">
+                <option value="lower" data-i18n="score.glissLower">向下更低（扩散）</option>
+                <option value="higher" data-i18n="score.glissHigher">向下更高（收拢）</option>
+              </select>
+            </label>
+            <label class="score-field">
+              <span data-i18n="score.glissLen">滑音长度</span> <span id="score-edit-gliss-height-val">100</span>%
+              <input type="range" id="score-edit-gliss-height" min="100" max="400" step="1" value="100">
+            </label>
+          </div>
+          <div class="score-edit-row" id="score-edit-kind-actions">
+            <button type="button" class="btn btn-secondary" id="score-edit-kind-apply" data-i18n="score.applyKind">应用条码样式</button>
+          </div>
+        </fieldset>
+        <fieldset class="score-chord-field inactive">
+          <legend data-i18n="score.chordLegend">合音（测试）</legend>
+          <label class="score-field">
+            <span data-i18n="score.weave">交错次数</span> <span id="score-chord-weave-val">1</span>
+            <input type="range" id="score-chord-weave" min="1" max="8" step="1" value="1" disabled>
+          </label>
+          <p class="control-note control-note--tight" id="score-chord-weave-hint" data-i18n="score.weaveHint">2 音 ×2 → ABAB；3 音 ×2 → ABCABC</p>
+          <div class="score-edit-row">
+            <label class="score-field">
+              <span data-i18n="score.chordPitch">新分音音高</span>
+              <select id="score-chord-pitch" class="score-pitch-select"></select>
+            </label>
+            <button type="button" class="btn btn-secondary" id="score-chord-add" data-i18n="score.chordAdd">添加分音</button>
+            <button type="button" class="btn btn-secondary" id="score-chord-single" data-i18n="score.chordSingle">改回单音</button>
+          </div>
+        </fieldset>
+        <fieldset class="score-midi-field">
+          <legend data-i18n="score.midiLegend">MIDI 录入</legend>
+          <div class="score-edit-row">
+            <button type="button" class="btn btn-secondary" id="score-midi-connect" data-i18n="score.midiConnect">连接 MIDI 设备</button>
+          </div>
+          <label class="toggle toggle--compact">
+            <input type="checkbox" id="score-midi-enable"> <span data-i18n="score.midiEnable">启用 MIDI 写入乐谱</span>
+          </label>
+          <label class="score-field">
+            <span data-i18n="score.midiInput">输入设备</span>
+            <select id="score-midi-input" disabled>
+              <option value="" data-i18n="score.midiConnectFirst">— 请先连接 —</option>
+            </select>
+          </label>
+          <p class="control-note control-note--tight score-midi-status" id="score-midi-status" data-i18n="midi.disconnected">未连接 · 点击「连接 MIDI 设备」</p>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="per-bar-controls" id="bass-per-bar-wrap">
+      <p class="hint" data-i18n="bar.perBarHint">每条码可单独调节疏密（竖纹模式）</p>
+      <div class="density-sliders" id="bass-density-sliders"></div>
+    </div>
+
+    <div class="play-area">
+      <div class="stage-wrap">
+        <canvas id="bass-canvas" width="900" height="880" data-i18n-title="canvas.stage" aria-label="条纹贝斯演奏区"></canvas>
+        <span class="scan-line-label" data-i18n="hint.scanDefault">按住鼠标扫描 · 滚轮调线宽</span>
+      </div>
+      <aside class="stage-pitch-panel" aria-label="Pitch">
+        <fieldset class="pitch-display">
+          <legend data-i18n="pitch.legend">实时音高</legend>
+          <div class="pitch-meter" id="bass-pitch-meter">
+            <span class="freq" id="bass-freq-display">—</span>
+            <span class="note" id="bass-note-display">Hz</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="bass-audio-on" checked> <span data-i18n="pitch.audioOn">发声</span>
+          </label>
+        </fieldset>
+      </aside>
+    </div>
+    <p class="hint" id="bass-vertical-hint" data-i18n-html="hint.vertical">移动鼠标到某条条码上，<strong>按住鼠标</strong>：激光线垂直于移动方向扫过该处条纹</p>
+    <p class="hint box-hint hidden" id="bass-box-hint" data-i18n="hint.box">方框内竖纹左密右疏，按住鼠标在框内横向移动可滑音</p>
+    <p class="hint box-hint hidden" id="bass-fan-hint" data-i18n-html="hint.fan">自左边中点<strong>直线</strong>放射，左密右疏；横向滑动可长滑音</p>
+    <p class="hint box-hint hidden" id="bass-image-hint" data-i18n-html="hint.image">中等长度乐谱会<strong>整图一屏</strong>显示；超长条才需 ↑↓ / 滚轮抽拉</p>
+    <p class="hint box-hint hidden" id="bass-audio-hint" data-i18n-html="hint.audio">振镜<strong>停摆</strong>（帧率 0）、<strong>单点</strong>激光、<strong>锁定横向</strong>；按住鼠标沿条码左右匀速划过即可还原语音</p>
+    <p class="hint box-hint hidden" id="bass-score-hint" data-i18n-html="hint.score">滑音行：顶=目标音高；合音可调交错；<strong>X</strong> 锁定编辑；振镜方向见上方扫描区</p>
+  </section>
+
+  <footer class="site-footer">
+    <p data-i18n="footer.formula">光电脉冲 → 音频 · f ≈ 帧率 × 线宽 / 条纹周期（Processing Barcoder 一致）</p>
+  </footer>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
